@@ -21,7 +21,7 @@ public class UserController {
 
     private final OrderService service;
 
-    @PostMapping
+    @PostMapping("/order")
     public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest order) {
         return new ResponseEntity<>(service.createOrder(order), HttpStatus.CREATED);
     }
@@ -44,7 +44,7 @@ public class UserController {
         return ResponseEntity.ok(service.getOrder(id));
     }
 
-    @GetMapping
+    @GetMapping("/orders")
     public ResponseEntity<List<OrderResponse>> getAllOrdersInfo() {
         return ResponseEntity.ok(service.getUserOrders());
     }

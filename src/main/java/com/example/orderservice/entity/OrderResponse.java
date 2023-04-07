@@ -2,7 +2,7 @@ package com.example.orderservice.entity;
 
 public record OrderResponse(
         Integer id,
-        String weight,
+        Double weight,
         String destination,
         String departure,
         Status status,

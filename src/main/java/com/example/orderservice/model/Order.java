@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 public class Order {
     @Id
     private Integer id;
-    private String weight;
+    private Double weight;
     private String departure;
     private String destination;
 
