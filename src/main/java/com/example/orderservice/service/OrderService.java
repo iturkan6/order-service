@@ -2,11 +2,14 @@ package com.example.orderservice.service;
 
 import com.example.orderservice.configuration.JwtAuthFilter;
 import com.example.orderservice.entity.*;
+import com.example.orderservice.model.KafkaModel;
 import com.example.orderservice.model.Order;
 import com.example.orderservice.model.User;
 import com.example.orderservice.repository.OrderRepo;
 import com.example.orderservice.repository.UserRepo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.webjars.NotFoundException;
@@ -15,12 +18,14 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class OrderService {
 
     private final OrderRepo orderRepo;
     private final UserRepo userRepo;
     private final JwtAuthFilter filter;
     private final PasswordEncoder encoder;
+    private final KafkaTemplate<String, KafkaModel> kafkaTemplate;
 
     public OrderResponse changeDestination(
             ChangeDestRequest request) {
@@ -31,15 +36,19 @@ public class OrderService {
     }
 
     public OrderResponse changeStatus(Integer orderId, String status) {
+        User user = userRepo.findByEmail(filter.getEmail()).orElseThrow();
         Order order = getActiveOrder(orderId);
         order.setStatus(Status.valueOf(status));
-        orderRepo.save(order);
+        Order updated_status = orderRepo.save(order);
+        kafkaTemplate.send("user_status", new KafkaModel(user.getEmail(), updated_status.getStatus().toString()));
         return fillResponse(order);
     }
 
     public OrderResponse createOrder(OrderRequest order) {
         User user = userRepo.findByEmail(filter.getEmail()).orElseThrow();
+        log.info("Creating order for user with id {}", user.getId());
         Order new_order = Order.builder()
+                .id(15)
                 .weight(order.weight())
                 .courier(userRepo
                         .getCourier()
@@ -48,12 +57,16 @@ public class OrderService {
                 .destination(order.destination())
                 .status(Status.SHIPPED)
                 .build();
+
+        kafkaTemplate.send("user_status", new KafkaModel(user.getEmail(), Status.SHIPPED.toString()));
         return fillResponse(orderRepo.save(new_order));
     }
 
     public Status cancelOrder(Integer orderId) {
+        User user = userRepo.findByEmail(filter.getEmail()).orElseThrow();
         Order order = getActiveOrder(orderId);
         order.setStatus(Status.CANCELED);
+        kafkaTemplate.send("user_status", new KafkaModel(user.getEmail(), Status.CANCELED.toString()));
         return orderRepo.save(order).getStatus();
 
     }
