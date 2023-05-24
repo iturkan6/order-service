@@ -2,7 +2,6 @@ package com.example.orderservice.controller;
 
 import com.example.orderservice.entity.ChangeStatusRequest;
 import com.example.orderservice.entity.OrderResponse;
-import com.example.orderservice.service.CourierService;
 import com.example.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
