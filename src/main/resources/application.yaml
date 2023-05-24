@@ -1,11 +1,11 @@
 server:
-  port: 8081
+  port: ${PORT}
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/parcel_delivery
-    username: postgres
-    password: secret
+    url: ${JDBC_URL}
+    username: ${JDBC_USERNAME}
+    password: ${JDBC_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -17,6 +17,8 @@ spring:
         format_sql: true
     database: postgresql
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+
 
   mvc:
     pathmatch:
