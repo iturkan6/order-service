@@ -1,7 +1,6 @@
 package com.example.orderservice.entity;
 
 public record CourierRequest(
-        Integer id,
         String name,
         String surname,
         String email,

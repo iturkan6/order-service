@@ -13,11 +13,13 @@ import java.util.Optional;
 @Repository
 public interface OrderRepo extends JpaRepository<Order, Integer> {
 
-    @Query("select ord from Order ord where ord.id = ?1 and ord.status = 'SHIPPED'")
-    Optional<Order> findActiveById(Integer id);
+//    @Query("select ord from Order ord where ord.id = ?1 and ord.status = 'SHIPPED'")
+//    Optional<Order> findActiveById(Integer id);
 
-    @Query("select ord from Order ord where ord.status = 'SHIPPED'")
-    List<Order> findAllActive();
+//    @Query("select ord from Order ord where ord.status = 'SHIPPED'")
+//    List<Order> findAllActive();
+
+    Optional<Order> findByIsActiveIsTrueAndId(Integer id);
 
     List<Order> findAllByUser(User user);
     List<Order> findAllByCourier(User courier);

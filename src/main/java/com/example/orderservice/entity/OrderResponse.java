@@ -6,6 +6,6 @@ public record OrderResponse(
         String destination,
         String departure,
         Status status,
-        Integer userId,
-        Integer courierId) {
+        String userId,
+        String courierId) {
 }

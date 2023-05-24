@@ -26,26 +26,26 @@ public class UserController {
         return new ResponseEntity<>(service.createOrder(order), HttpStatus.CREATED);
     }
 
-    @PostMapping("/destination")
+    @PostMapping("/order/destination")
     public ResponseEntity<OrderResponse> changeDestination
             (@RequestBody ChangeDestRequest order) {
-        return ResponseEntity.ok(service.changeDestination(order));
+        return ResponseEntity.ok(service.changeOrderDestination(order));
     }
 
-    @PostMapping("/cancel")
+    @PostMapping("/order/{id}/cancel")
     public ResponseEntity<Status> changeDestination
-            (@RequestBody Integer orderId) {
+            (@PathVariable(name = "id") Integer orderId) {
         return ResponseEntity.ok(service.cancelOrder(orderId));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/order/{id}")
     public ResponseEntity<OrderResponse> getOrderInfo
             (@PathVariable Integer id) {
-        return ResponseEntity.ok(service.getOrder(id));
+        return ResponseEntity.ok(service.getOrderById(id));
     }
 
     @GetMapping("/orders")
     public ResponseEntity<List<OrderResponse>> getAllOrdersInfo() {
-        return ResponseEntity.ok(service.getUserOrders());
+        return ResponseEntity.ok(service.getOrdersByUser());
     }
 }

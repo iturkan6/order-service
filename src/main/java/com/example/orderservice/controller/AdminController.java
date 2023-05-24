@@ -5,6 +5,7 @@ import com.example.orderservice.entity.ChangeStatusRequest;
 import com.example.orderservice.entity.CourierRequest;
 import com.example.orderservice.entity.OrderResponse;
 import com.example.orderservice.model.User;
+import com.example.orderservice.service.CourierService;
 import com.example.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
@@ -19,41 +20,41 @@ import java.util.List;
 @SecurityRequirement(name = "BasicAuth")
 @RequiredArgsConstructor
 public class AdminController {
-    private final OrderService service;
+
+    private final OrderService orderService;
+    private final CourierService courierService;
 
     @PostMapping("/status")
     public ResponseEntity<OrderResponse> changeStatus(
             @RequestBody ChangeStatusRequest request
     ) {
-        return ResponseEntity.ok(service.changeStatus(
-                request.orderId(),
-                request.status()));
+        return ResponseEntity.ok(orderService.changeOrderStatus(request));
     }
 
     @PostMapping("/courier")
     public ResponseEntity<Integer> createCourier(
             @RequestBody CourierRequest request
     ) {
-        return new ResponseEntity<>(service.createCourier(request), HttpStatus.CREATED);
+        return new ResponseEntity<>(courierService.createCourier(request), HttpStatus.CREATED);
     }
 
     @GetMapping
     public ResponseEntity<List<OrderResponse>> getAllOrdersInfo() {
-        return ResponseEntity.ok(service.getAllOrders());
+        return ResponseEntity.ok(orderService.getAllOrders());
     }
 
     @PostMapping("/assign")
     public ResponseEntity<OrderResponse> assignOrder(
             @RequestBody AssignOrderRequest request
     ) {
-        return ResponseEntity.ok(service.assignOrder(
+        return ResponseEntity.ok(orderService.assignOrder(
                 request.orderId(),
                 request.courierId()));
     }
 
     @GetMapping("/couriers")
     public ResponseEntity<List<User>> getAllCouriers() {
-        return ResponseEntity.ok(service.getAllCouriers());
+        return ResponseEntity.ok(courierService.getAll());
     }
 
 }

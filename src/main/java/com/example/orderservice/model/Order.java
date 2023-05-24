@@ -15,10 +15,13 @@ import lombok.NoArgsConstructor;
 @Table(name = "_order")
 public class Order {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private Double weight;
     private String departure;
     private String destination;
+    @Builder.Default
+    private Boolean isActive = true;
 
     @Enumerated(value = EnumType.STRING)
     Status status;

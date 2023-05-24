@@ -2,6 +2,7 @@ package com.example.orderservice.controller;
 
 import com.example.orderservice.entity.ChangeStatusRequest;
 import com.example.orderservice.entity.OrderResponse;
+import com.example.orderservice.service.CourierService;
 import com.example.orderservice.service.OrderService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
@@ -16,25 +17,23 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CourierController {
 
-    private final OrderService service;
+    private final OrderService orderService;
 
-    @GetMapping("/")
+    @GetMapping("/orders")
     public ResponseEntity<List<OrderResponse>> getAllOrdersInfo() {
-        return ResponseEntity.ok(service.getCourierOrders());
+        return ResponseEntity.ok(orderService.getOrdersByUser());
     }
 
-    @PostMapping("/status")
+    @PostMapping("/order/status")
     public ResponseEntity<OrderResponse> changeStatus(
             @RequestBody ChangeStatusRequest request
     ) {
-        return ResponseEntity.ok(service.changeStatus(
-                request.orderId(),
-                request.status()));
+        return ResponseEntity.ok(orderService.changeOrderStatus(request));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/order/{id}")
     public ResponseEntity<OrderResponse> getOrderInfo
             (@PathVariable Integer id) {
-        return ResponseEntity.ok(service.getOrder(id));
+        return ResponseEntity.ok(orderService.getOrderById(id));
     }
 }
