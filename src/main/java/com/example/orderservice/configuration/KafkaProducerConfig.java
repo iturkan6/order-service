@@ -1,10 +1,8 @@
 package com.example.orderservice.configuration;//package com.example.authservice.configuration;
 
-import com.example.orderservice.model.KafkaModel;
-import nonapi.io.github.classgraph.json.JSONSerializer;
+import com.example.orderservice.entity.KafkaDTO;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.IntegerSerializer;
-import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -20,7 +18,7 @@ import java.util.Map;
 @EnableKafka
 public class KafkaProducerConfig {
     @Bean
-    public ProducerFactory<String, KafkaModel> producerFactory() {
+    public ProducerFactory<String, KafkaDTO> producerFactory() {
         return new DefaultKafkaProducerFactory<>(senderProps());
     }
 
@@ -34,7 +32,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, KafkaModel> kafkaTemplate() {
+    public KafkaTemplate<String, KafkaDTO> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 }
