@@ -2,7 +2,8 @@ package com.example.orderservice.service;
 
 import com.example.orderservice.configuration.JwtAuthFilter;
 import com.example.orderservice.entity.*;
-import com.example.orderservice.model.KafkaModel;
+import com.example.orderservice.exception.ActiveCourierNotFoundException;
+import com.example.orderservice.exception.OrderNotFoundException;
 import com.example.orderservice.model.Order;
 import com.example.orderservice.model.User;
 import com.example.orderservice.repository.OrderRepo;
@@ -10,9 +11,7 @@ import com.example.orderservice.repository.UserRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.webjars.NotFoundException;
 
 import java.util.List;
 
@@ -24,93 +23,69 @@ public class OrderService {
     private final OrderRepo orderRepo;
     private final UserRepo userRepo;
     private final JwtAuthFilter filter;
-    private final PasswordEncoder encoder;
-    private final KafkaTemplate<String, KafkaModel> kafkaTemplate;
+    private final KafkaTemplate<String, KafkaDTO> kafkaTemplate;
 
-    public OrderResponse changeDestination(
+    public OrderResponse changeOrderDestination(
             ChangeDestRequest request) {
         Order order = getActiveOrder(request.orderId());
         order.setDestination(request.destination());
         orderRepo.save(order);
-        return fillResponse(order);
+        return fillResponse((order));
     }
 
-    public OrderResponse changeStatus(Integer orderId, String status) {
-        User user = userRepo.findByEmail(filter.getEmail()).orElseThrow();
-        Order order = getActiveOrder(orderId);
-        order.setStatus(Status.valueOf(status));
-        Order updated_status = orderRepo.save(order);
-        kafkaTemplate.send("user_status", new KafkaModel(user.getEmail(), updated_status.getStatus().toString()));
-        return fillResponse(order);
+    public OrderResponse changeOrderStatus(ChangeStatusRequest request) {
+        Order order = getActiveOrder(request.orderId());
+        order.setStatus(Status.valueOf(request.status()));
+        if (Status.DELIVERED.name().equals(request.status())) {
+            order.setIsActive(Boolean.FALSE);
+        }
+        kafkaTemplate.send("user_status", new KafkaDTO(order.getUser().getId(), request.status()));
+        return fillResponse((order));
     }
 
-    public OrderResponse createOrder(OrderRequest order) {
+    public OrderResponse createOrder(OrderRequest orderRequest) {
         User user = userRepo.findByEmail(filter.getEmail()).orElseThrow();
+
         log.info("Creating order for user with id {}", user.getId());
-        Order new_order = Order.builder()
-                .id(15)
-                .weight(order.weight())
-                .courier(userRepo
-                        .getCourier()
-                        .orElseThrow())
-                .user(user)
-                .destination(order.destination())
-                .status(Status.SHIPPED)
-                .build();
 
-        kafkaTemplate.send("user_status", new KafkaModel(user.getEmail(), Status.SHIPPED.toString()));
-        return fillResponse(orderRepo.save(new_order));
+        OrderResponse order = fillResponse(
+                orderRepo.save(
+                        Order.builder()
+                                .weight(orderRequest.weight())
+                                .user(user)
+                                .destination(orderRequest.destination())
+                                .departure(orderRequest.departure())
+                                .status(Status.CREATED)
+                                .build()));
+//        kafkaTemplate.send("user_status", new KafkaDTO(user.getId(), Status.CREATED.name()));
+
+        User courier = getActiveCourier();
+        if (courier != null) {
+            order = assignOrder(order.id(), courier.getId());
+        }
+        return order;
     }
 
     public Status cancelOrder(Integer orderId) {
-        User user = userRepo.findByEmail(filter.getEmail()).orElseThrow();
         Order order = getActiveOrder(orderId);
-        order.setStatus(Status.CANCELED);
-        kafkaTemplate.send("user_status", new KafkaModel(user.getEmail(), Status.CANCELED.toString()));
+        order.setStatus(Status.CANCELLED);
+        order.setIsActive(Boolean.FALSE);
+        kafkaTemplate.send("user_status", new KafkaDTO(order.getUser().getId(), Status.CANCELLED.name()));
         return orderRepo.save(order).getStatus();
-
     }
 
-
-    private OrderResponse fillResponse(Order item) {
-        return new OrderResponse(
-                item.getId(),
-                item.getWeight(),
-                item.getDestination(),
-                item.getDeparture(),
-                item.getStatus(),
-                item.getUser().getId(),
-                item.getCourier().getId()
-        );
-    }
-
-    public OrderResponse getOrder(Integer orderId) {
-        return fillResponse(orderRepo
+    public OrderResponse getOrderById(Integer orderId) {
+        return fillResponse((orderRepo
                 .findById(orderId)
-                .orElseThrow(() -> new NotFoundException("No order with such id")));
+                .orElseThrow(() -> new OrderNotFoundException(orderId))));
     }
 
-
-    private Order getActiveOrder(Integer orderId) {
-        return orderRepo
-                .findActiveById(orderId)
-                .orElseThrow(() -> new NotFoundException("No courier with such id"));
-    }
-
-    public List<OrderResponse> getCourierOrders() {
-        User courier = userRepo.findByEmail(filter.getEmail()).orElseThrow();
-        return orderRepo.findAllByCourier(courier)
-                .stream()
-                .map(this::fillResponse)
-                .toList();
-    }
-
-    public List<OrderResponse> getUserOrders() {
+    public List<OrderResponse> getOrdersByUser() {
         User user = userRepo.findByEmail(filter.getEmail()).orElseThrow();
-        return orderRepo.findAllByUser(user)
-                .stream()
-                .map(this::fillResponse)
-                .toList();
+        var orders = user.getRole().equals(Role.USER) ?
+                orderRepo.findAllByUser(user) :
+                orderRepo.findAllByCourier(user);
+        return orders.stream().map(this::fillResponse).toList();
     }
 
     public List<OrderResponse> getAllOrders() {
@@ -124,23 +99,41 @@ public class OrderService {
             Integer orderId,
             Integer courierId
     ) {
-        User courier = userRepo.findById(courierId).orElseThrow();
+        User courier = getUserById(courierId);
         Order order = getActiveOrder(orderId);
         order.setCourier(courier);
-        return fillResponse(orderRepo.save(order));
-    }
-    public List<User> getAllCouriers() {
-       return userRepo.findAllByRole(Role.COURIER);
+        order.setStatus(Status.SHIPPED);
+//        kafkaTemplate.send("user_status", new KafkaDTO(order.getUser().getId(), Status.SHIPPED.name()));
+        return fillResponse((orderRepo.save(order)));
     }
 
-    public Integer createCourier(CourierRequest request) {
-        User user = User.builder()
-                .email(request.email())
-                .password(encoder.encode(request.password()))
-                .role(Role.COURIER)
-                .name(request.name())
-                .surname(request.surname())
-                .build();
-        return userRepo.save(user).getId();
+    private Order getActiveOrder(Integer orderId) {
+        return orderRepo
+                .findByIsActiveIsTrueAndId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
     }
+
+    private OrderResponse fillResponse(Order item) {
+        var courierId = item.getCourier() != null ?
+                item.getCourier().getId().toString() :
+                null;
+        return new OrderResponse(
+                item.getId(),
+                item.getWeight(),
+                item.getDestination(),
+                item.getDeparture(),
+                item.getStatus(),
+                item.getUser().getId().toString(),
+                courierId
+        );
+    }
+
+    private User getUserById(Integer id) {
+        return userRepo.findById(id).orElseThrow();
+    }
+
+    private User getActiveCourier() {
+        return userRepo.findAllByRole(Role.COURIER).stream().findAny().orElseThrow(ActiveCourierNotFoundException::new);
+    }
+
 }
